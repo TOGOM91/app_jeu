@@ -63,11 +63,31 @@ class UsersController extends AppController
         $scoresByGame = $scoresTable->findForUser($user->id);
         $stats        = $scoresTable->statsForUser($user->id);
 
+        $identity = $this->Authentication->getIdentity();
+        $isMe = $identity && (int)$identity->get('id') === (int)$user->id;
+
+        $activeRooms = [];
+        if ($isMe) {
+            $roomsTable = $this->fetchTable('GameRooms');
+            $rows = $roomsTable->find()
+                ->where(['status IN' => ['waiting', 'playing']])
+                ->orderBy(['modified' => 'DESC'])
+                ->toArray();
+            $activeRooms = array_values(array_filter($rows, function ($r) use ($user) {
+                foreach ($r->players as $p) {
+                    if ((int)$p['id'] === (int)$user->id) return true;
+                }
+                return false;
+            }));
+        }
+
         $this->set([
             'profile'      => $user,
             'scoresByGame' => $scoresByGame,
             'stats'        => $stats,
             'registry'     => GameRegistry::getInstance(),
+            'isMe'         => $isMe,
+            'activeRooms'  => $activeRooms,
         ]);
     }
 }

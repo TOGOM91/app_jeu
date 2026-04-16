@@ -377,7 +377,7 @@ final class LabyrinthGame implements GameInterface
             $elapsed = $now - (int)$m['lastMove'];
             if ($elapsed < self::MONSTER_MOVE_SEC) continue;
 
-            $ticks = intdiv($elapsed, self::MONSTER_MOVE_SEC);
+            $ticks = min(2, intdiv($elapsed, self::MONSTER_MOVE_SEC));
             for ($t = 0; $t < $ticks; $t++) {
                 $dirs = [[0,-1],[0,1],[-1,0],[1,0]];
                 shuffle($dirs);
@@ -400,7 +400,7 @@ final class LabyrinthGame implements GameInterface
                     break;
                 }
             }
-            $m['lastMove'] = (int)$m['lastMove'] + $ticks * self::MONSTER_MOVE_SEC;
+            $m['lastMove'] = $now;
             $state['monsters'][$i] = $m;
         }
         return $state;

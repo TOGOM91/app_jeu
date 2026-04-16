@@ -15,6 +15,34 @@ $this->assign('title', '@' . $profile->username);
         </p>
     </div>
 
+    <?php if (!empty($isMe) && !empty($activeRooms)): ?>
+        <div class="profile__active">
+            <h2 class="profile__section-title">Parties en cours</h2>
+            <ul class="room-list">
+                <?php foreach ($activeRooms as $r):
+                    if (!$registry->has($r->game_slug)) continue;
+                    $g = $registry->get($r->game_slug);
+                ?>
+                    <li>
+                        <a href="/rooms/<?= h($r->code) ?>" class="room-list__item room-list__item--mine">
+                            <span class="room-list__code"><?= h($g->getIcon()) ?> <?= h($r->code) ?></span>
+                            <span class="room-list__host">
+                                <?php
+                                $names = array_map(fn($p) => h($p['name']), $r->players);
+                                echo implode(' vs ', $names);
+                                ?>
+                            </span>
+                            <span class="room-list__status room-list__status--<?= h($r->status) ?>">
+                                <?= h($r->status) ?>
+                            </span>
+                            <span class="room-list__arrow">↗</span>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+
     <div class="profile__stats">
         <?php if (empty($stats)): ?>
             <p class="profile__empty">Aucune partie jouée pour l'instant.</p>

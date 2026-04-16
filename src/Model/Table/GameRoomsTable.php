@@ -44,4 +44,22 @@ class GameRoomsTable extends Table
             ->limit(20)
             ->toArray();
     }
+
+    public function findActiveForUser(string $gameSlug, int $userId): array
+    {
+        $rows = $this->find()
+            ->where([
+                'game_slug' => $gameSlug,
+                'status IN' => ['waiting', 'playing'],
+            ])
+            ->orderBy(['modified' => 'DESC'])
+            ->toArray();
+
+        return array_values(array_filter($rows, function ($r) use ($userId) {
+            foreach ($r->players as $p) {
+                if ((int)$p['id'] === $userId) return true;
+            }
+            return false;
+        }));
+    }
 }

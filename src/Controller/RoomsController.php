@@ -22,8 +22,16 @@ class RoomsController extends AppController
             return $this->redirect(['controller' => 'Games', 'action' => 'play', $slug]);
         }
 
-        $rooms = $this->fetchTable('GameRooms')->findOpen($slug);
-        $this->set(compact('game', 'rooms'));
+        $roomsTable = $this->fetchTable('GameRooms');
+        $rooms = $roomsTable->findOpen($slug);
+
+        $user = $this->Authentication->getIdentity();
+        $myActive = [];
+        if ($user) {
+            $myActive = $roomsTable->findActiveForUser($slug, (int)$user->get('id'));
+        }
+
+        $this->set(compact('game', 'rooms', 'myActive'));
     }
 
     public function create(string $slug): Response
@@ -31,6 +39,14 @@ class RoomsController extends AppController
         $this->request->allowMethod(['post']);
         $user = $this->Authentication->getIdentity();
         if (!$user) throw new ForbiddenException();
+
+        $usersTable = $this->fetchTable('Users');
+        $exists = $usersTable->find()->where(['id' => $user->get('id')])->count() > 0;
+        if (!$exists) {
+            $this->Authentication->logout();
+            $this->Flash->error('Session obsolète, reconnecte-toi.');
+            return $this->redirect('/login');
+        }
 
         $registry = GameRegistry::getInstance();
         if (!$registry->has($slug)) throw new NotFoundException();

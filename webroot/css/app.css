@@ -822,6 +822,31 @@ body {
 }
 .room-list__arrow { color: var(--ink-dim); }
 
+.room-list__item--mine {
+    border-color: var(--accent);
+    background: linear-gradient(90deg, rgba(228,255,58,.04), transparent);
+}
+.room-list__status {
+    font-size: 10px; letter-spacing: .15em; text-transform: uppercase;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    border-radius: var(--radius);
+}
+.room-list__status--waiting { color: var(--ink-dim); }
+.room-list__status--playing { color: var(--accent); }
+
+.lobby__section--mine {
+    padding: 16px 18px;
+    background: var(--bg-2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+}
+
+.profile__active {
+    margin-bottom: 48px;
+}
+
 /* ---------------- Labyrinth ---------------------------------------- */
 .labyrinth {
     display: grid;
