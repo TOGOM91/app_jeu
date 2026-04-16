@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Game\GameRegistry;
+use App\Game\Labyrinth\LabyrinthGame;
 use Cake\Http\Exception\BadRequestException;
 use Cake\Http\Exception\ForbiddenException;
 use Cake\Http\Exception\NotFoundException;
@@ -11,11 +12,6 @@ use Cake\Http\Response;
 
 class RoomsController extends AppController
 {
-    public function beforeFilter(\Cake\Event\EventInterface $event): void
-    {
-        parent::beforeFilter($event);
-    }
-
     public function lobby(string $slug)
     {
         $registry = GameRegistry::getInstance();
@@ -86,6 +82,14 @@ class RoomsController extends AppController
             $room->players = $players;
             if (count($players) >= $game->minPlayers()) {
                 $room->status = 'playing';
+                if ($game instanceof LabyrinthGame) {
+                    $state = $room->state;
+                    $now = time();
+                    foreach ($state['players'] as $i => $_) {
+                        $state['players'][$i]['lastRegen'] = $now;
+                    }
+                    $room->state = $state;
+                }
             }
             $room->version = (int)$room->version + 1;
             $rooms->save($room);
@@ -102,6 +106,11 @@ class RoomsController extends AppController
 
         $registry = GameRegistry::getInstance();
         $game = $registry->get($room->game_slug);
+
+        if ($game instanceof LabyrinthGame && $room->status === 'playing') {
+            $room->state = $game->regenAll($room->state);
+            $rooms->save($room);
+        }
 
         $user = $this->Authentication->getIdentity();
         $myIndex = null;
@@ -121,6 +130,18 @@ class RoomsController extends AppController
         $rooms = $this->fetchTable('GameRooms');
         $room = $rooms->findByCode($code);
         if (!$room) throw new NotFoundException();
+
+        $registry = GameRegistry::getInstance();
+        $game = $registry->get($room->game_slug);
+
+        if ($game instanceof LabyrinthGame && $room->status === 'playing') {
+            $newState = $game->regenAll($room->state);
+            if ($newState !== $room->state) {
+                $room->state = $newState;
+                $room->version = (int)$room->version + 1;
+                $rooms->save($room);
+            }
+        }
 
         return $this->json([
             'ok'      => true,
@@ -163,7 +184,7 @@ class RoomsController extends AppController
         $room->version = (int)$room->version + 1;
         if (($newState['status'] ?? '') === 'finished') {
             $room->status = 'finished';
-            $this->recordMultiScores($room, $game);
+            $this->recordMultiScores($room);
         }
         $rooms->save($room);
 
@@ -175,22 +196,26 @@ class RoomsController extends AppController
         ]);
     }
 
-    private function recordMultiScores($room, $game): void
+    private function recordMultiScores($room): void
     {
         $scores = $this->fetchTable('Scores');
-        $winner = $room->state['winner'] ?? null;
+        $state = $room->state;
+        $winner = $state['winner'] ?? null;
 
         foreach ($room->players as $i => $p) {
+            $score = 0;
+            if (isset($state['scores'][$i])) $score = (int)$state['scores'][$i];
+
             $entity = $scores->newEntity([
                 'user_id'   => $p['id'],
                 'game_slug' => $room->game_slug,
-                'score'     => (int)($room->state['scores'][$i] ?? 0),
+                'score'     => $score,
                 'won'       => ($winner === $i) ? 1 : 0,
                 'meta'      => [
-                    'mode'    => 'online',
-                    'room'    => $room->code,
-                    'opponent'=> $room->players[1 - $i]['name'] ?? null,
-                    'winner'  => $winner,
+                    'mode'     => 'online',
+                    'room'     => $room->code,
+                    'opponent' => $room->players[1 - $i]['name'] ?? null,
+                    'winner'   => $winner,
                 ],
             ]);
             $scores->save($entity);
